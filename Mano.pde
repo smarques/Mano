@@ -1,35 +1,74 @@
 import de.voidplus.leapmotion.*;
 import oscP5.*;
 import netP5.*;
+import controlP5.*;
 
 LeapMotion leap;
 int num=0;
 OscP5 oscP5;
 NetAddress dest;
-PFont font;
-int   fontSize = 30;
-
+PFont font, fontSmall;
+int   fontSize = 30, fontSizeSmall = 12;
+ControlP5 cp5;
+boolean isRecording = true; //mode
+boolean isRecordingNow = true;
+int currentClass = 1;
+int alpha = 0;
+String[] messageNames = {"/output_1", "/output_2", "/output_3", "/output_4", "/output_5", "/output_6", "/output_7", "/output_8", "/output_9" }; //message names for each DTW gesture type
+int receivedClass = 1;
+Toggle workingMode;
 
 void setup() {
   size(800, 500);
   background(255); //black background
   //talk to our wekinator friend
-  oscP5 = new OscP5(this, 9000);
+  oscP5 = new OscP5(this, 12000);
   dest = new NetAddress("127.0.0.1", 6448);
   //set up a font for printing online
   font = createFont("NexaLight-16.vlw", fontSize, true);
+  fontSmall = createFont("NexaLight-16.vlw", fontSizeSmall, true);
   textFont(font, fontSize);
   //init leap
   leap = new LeapMotion(this);
   //set up var names
   sendInputNames();
+  createControls();
+}
+
+void createControls() {
+  cp5 = new ControlP5(this);
+  workingMode = cp5.addToggle("isRecording")
+    .setPosition(700, 20)
+    .setSize(75, 20)
+    .setValue(true)
+    .setCaptionLabel("record/run")
+    .setMode(ControlP5.SWITCH)
+    ;
+}
+
+void keyPressed() {
+  int keyIndex = -1;
+  print(keyCode); 
+  if (key >= '1' && key <= '9') {
+    currentClass = key - '1' + 1;
+  } else if (key == ' ') {
+    isRecording = !isRecording;
+    workingMode.setValue(isRecording);
+  }
 }
 
 void draw() {
-  background(0);stroke(255);
+  background(0);
+  stroke(255);
+  drawText();
+  sendInputs();
+}
+
+void sendInputs() {
   // ========= HANDS =========
   if (leap.countHands() == 2) //we can only send data when Leap sees both hands
   {
+
     ArrayList<Hand> hands = leap.getHands();
     Hand firstHand = hands.get(0);
     Hand secondHand = hands.get(1);
@@ -42,7 +81,7 @@ void draw() {
       Finger secondFinger = secondHand.getFinger(i);
       float dist = firstFinger.getPositionOfJointTip().dist(secondFinger.getPositionOfJointTip());
       print(dist + ",");  
-      if(i>0){
+      if (i>0) {
         currentPars +=",";
       }
       currentPars += "dist";
@@ -54,10 +93,48 @@ void draw() {
       fill(250);
       text(""+Math.round(dist), 100*i+20, 400, 100, 150);
     }
+    if (isRecording) {
+      isRecordingNow = true;
+      OscMessage msgStart = new OscMessage("/wekinator/control/startDtwRecording");
+      msgStart.add(currentClass);
+      oscP5.send(msgStart, dest);
+    } else
+    {
+      OscMessage msgRun = new OscMessage("/wekinator/control/startRunning");
+      oscP5.send(msgRun, dest);
+    }
     oscP5.send(msg, dest);
+  } else {
+    if (isRecordingNow) {
+      isRecordingNow = false;
+      OscMessage stopMsg = new OscMessage("/wekinator/control/stopDtwRecording");
+      oscP5.send(stopMsg, dest);
+    }
   }
 }
 
+
+void drawText() {
+  fill(255);
+  textFont(fontSmall);
+  String msg;
+  if (isRecording) {
+    msg = "Run Wekinator with 5 inputs (distance between thumbs, index fingers, ring fingers etc), 1 DTW output";
+    msg += "Place your hands in Leap Motions's sight to record class #" + currentClass + " (press number to change)\n";
+    msg += "Space bar toggles working mode";
+  } else {
+    msg = "Do your hand dance baby";
+  } 
+  text(msg, 580, 80, 200, 300);
+
+  if (!isRecording) {
+    //Draw received value
+    textFont(font, 140);
+    fill(0, 255, 0, alpha);
+    text(receivedClass, 600, 350);
+    alpha -= 10;
+  }
+}
 
 void sendInputNames() {
   OscMessage msg = new OscMessage("/wekinator/control/setInputNames");
@@ -67,4 +144,16 @@ void sendInputNames() {
   }
   oscP5.send(msg, dest); 
   println("Sent finger distances names");
+}
+
+void oscEvent(OscMessage theOscMessage) {
+  for (int i = 0; i < 9; i++) {
+    if (theOscMessage.checkAddrPattern(messageNames[i]) == true) {
+      showMessage(i);
+    }
+  }
+}
+void showMessage(int i) {
+  alpha = 255;
+  receivedClass = i+1;
 }
