@@ -31,3 +31,6 @@ The inputs in wekinator will be obviously 5
 The parameters are named in wekinator like: thumb_delta, index_delta, middle_delta, ring_delta, pinky_delta
 
 You might want to use wekinator input helper to smooth the data.
+
+
+Wekinator, and the WekinatorProxy class are courtesy of Rebecca Fiebrink https://github.com/fiebrink1
