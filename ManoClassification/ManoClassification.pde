@@ -17,13 +17,17 @@ int alpha = 0;
 String[] messageNames = {"/output_1", "/output_2", "/output_3", "/output_4", "/output_5", "/output_6", "/output_7", "/output_8", "/output_9" }; //message names for each DTW gesture type
 int receivedClass = 1;
 Toggle workingMode;
+int wekinatorReceivePort = 6448;
+int processingReceivePort = 12000;
+WekinatorProxy wp;
 
 void setup() {
   size(800, 500);
   background(255); //black background
   //talk to our wekinator friend
   oscP5 = new OscP5(this, 12000);
-  dest = new NetAddress("127.0.0.1", 6448);
+  wp = new WekinatorProxy(oscP5);
+  dest = new NetAddress("127.0.0.1", wekinatorReceivePort);
   //set up a font for printing online
   font = createFont("NexaLight-16.vlw", fontSize, true);
   fontSmall = createFont("NexaLight-16.vlw", fontSizeSmall, true);
@@ -33,6 +37,7 @@ void setup() {
   //set up var names
   sendInputNames();
   createControls();
+  toggleRecording();
 }
 
 void createControls() {
@@ -46,14 +51,30 @@ void createControls() {
     ;
 }
 
+void toggleRecording() {
+  isRecording = !isRecording;
+  workingMode.setValue(isRecording);
+  if (isRecording) {
+    wp.startRunning();
+    wp.startRecording();
+    sendCurrentClass();
+  } else {
+    wp.stopRecording();
+    wp.startRunning();
+  }
+}
+
+void sendCurrentClass(){
+  wp.setClass(currentClass);
+}
+
 void keyPressed() {
-  int keyIndex = -1;
   print(keyCode); 
   if (key >= '1' && key <= '9') {
     currentClass = key - '1' + 1;
+    sendCurrentClass();
   } else if (key == ' ') {
-    isRecording = !isRecording;
-    workingMode.setValue(isRecording);
+    toggleRecording();
   }
 }
 
@@ -74,7 +95,6 @@ void sendInputs() {
     Hand secondHand = hands.get(1);
     OscMessage msg = new OscMessage("/wek/inputs");
     String currentPars = "";
-    println("");
     println("SENDING FEATURES");
     for (int i = 0; i < 5; i++) {
       Finger firstFinger = firstHand.getFinger(i);
@@ -93,23 +113,8 @@ void sendInputs() {
       fill(250);
       text(""+Math.round(dist), 100*i+20, 400, 100, 150);
     }
-    if (isRecording) {
-      isRecordingNow = true;
-      OscMessage msgStart = new OscMessage("/wekinator/control/startDtwRecording");
-      msgStart.add(currentClass);
-      oscP5.send(msgStart, dest);
-    } else
-    {
-      OscMessage msgRun = new OscMessage("/wekinator/control/startRunning");
-      oscP5.send(msgRun, dest);
-    }
+
     oscP5.send(msg, dest);
-  } else {
-    if (isRecordingNow) {
-      isRecordingNow = false;
-      OscMessage stopMsg = new OscMessage("/wekinator/control/stopDtwRecording");
-      oscP5.send(stopMsg, dest);
-    }
   }
 }
 

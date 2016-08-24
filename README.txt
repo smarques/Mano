@@ -7,6 +7,14 @@ This Processing sketch uses the Leap Motion sensor (https://www.leapmotion.com/)
 
 This could be used to create a virtual instrument interface, that uses the two hands to control different sound parameters.
 
+There is two versions, in respective folders
+
+ManoClassification  helps training a supervised learning system in wekinator, and allows you to set classes from your sketch. 
+
+ManoRegression is for training continous outputs.
+
+The max folder includes a max mso patch. It currently listens to OSC on 12001 for incoming data but that's easily changed.
+
 Possible improvements: add more features (hand palm distance), detect gestures
 
 How to compile: You need to have processing 3 installed, with the following Processing libraries: 
